@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FALP — Ferramenta de Apoio Linguístico para Programação</title>
+<style>
+:root{--bg:#f3f5fb;--card:#fff;--tx:#1c2340;--mu:#5b6384;--ac:#3b4cca;--onac:#fff;--acb:#e6e9fa;--bd:#d6dbef;--hl:#ffe58a;--hlt:#1c2340;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12152a;--card:#1b1f3a;--tx:#e8eaf6;--mu:#9ea6cc;--ac:#9aa7ff;--onac:#12152a;--acb:#262b52;--bd:#303662;--hl:#6b5a12;--hlt:#fff3c4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12152a;--card:#1b1f3a;--tx:#e8eaf6;--mu:#9ea6cc;--ac:#9aa7ff;--onac:#12152a;--acb:#262b52;--bd:#303662;--hl:#6b5a12;--hlt:#fff3c4;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:760px;margin:0 auto;padding:22px 16px 40px}
+h1{margin:0;font-size:2.1rem;font-weight:800}
+h2{margin:4px 0 8px;font-size:1.15rem}
+.sub{color:var(--mu);margin:2px 0 18px;max-width:60ch}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:16px;overflow-x:auto}
+nav button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;font:inherit;color:var(--mu);cursor:pointer;white-space:nowrap}
+nav button[aria-selected=true]{color:var(--ac);border-color:var(--ac);font-weight:700}
+textarea,input,select{width:100%;font:inherit;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px}
+textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92rem;min-height:170px;resize:vertical}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.r{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.r select{width:auto}
+.b{background:var(--ac);color:var(--onac);border:1px solid var(--ac);border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer}
+.b.s{background:none;color:var(--ac)}
+.c,details{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;background:var(--hl);color:var(--hlt);padding:1px 6px;border-radius:3px;word-break:break-word}
+.k{font-size:.85rem;color:var(--mu);margin:0}
+.mu{color:var(--mu)}
+.bd{font-size:.75rem;background:var(--acb);color:var(--ac);border-radius:99px;padding:1px 9px;margin-left:8px;font-weight:500}
+ul{padding-left:18px;margin:6px 0}
+.ft{font-size:.85rem;color:var(--mu);margin-top:28px}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>FALP</h1>
+<p class="sub">Ferramenta de Apoio Linguístico para Programação. Cole uma mensagem de erro em inglês e entenda o que ela quer dizer, palavra por palavra.</p>
+<nav role="tablist">
+<button role="tab" data-p="a" aria-selected="true">Analisar</button>
+<button role="tab" data-p="f" aria-selected="false">Dúvidas frequentes</button>
+<button role="tab" data-p="h" aria-selected="false">Histórico <span id="hc"></span></button>
+</nav>
+
+<section id="a">
+<label for="in" class="k">Cole aqui o erro ou o código (Ctrl+Enter para explicar)</label>
+<textarea id="in" placeholder="Ex.: TypeError: 'int' object is not subscriptable"></textarea>
+<div class="r">
+<select id="lg" aria-label="Linguagem"><option value="auto">Linguagem: automática</option><option value="py">Python</option><option value="js">JavaScript</option></select>
+<button class="b" id="go">Explicar</button>
+<button class="b s" id="cl">Limpar</button>
+</div>
+<div id="out" aria-live="polite"></div>
+</section>
+
+<section id="f" hidden>
+<input id="q" type="search" placeholder="Buscar um erro ou termo…" aria-label="Buscar nas dúvidas frequentes">
+<div id="fl"></div>
+</section>
+
+<section id="h" hidden><div id="hl"></div></section>
+
+<p class="ft">Protótipo de pesquisa de iniciação científica. A base de erros ainda é pequena e vai crescer. O histórico fica salvo só neste navegador.</p>
+</div>
+
+<script>
+const E=[
+["py",/SyntaxError: invalid syntax/,"SyntaxError (erro de sintaxe)","Erro de sintaxe: sintaxe inválida.","O Python não conseguiu entender como o código foi escrito, como uma frase com a gramática quebrada.","Olhe a linha indicada e a anterior: pode faltar dois-pontos, parêntese ou aspas, ou haver um comando escrito errado.","SyntaxError: invalid syntax"],
+["py",/unterminated string literal|EOL while scanning/,"SyntaxError (texto não terminado)","Erro de sintaxe: texto (string) não terminado.","Você abriu aspas para um texto e não fechou na mesma linha.","Confira se cada aspa de abertura tem a de fechamento, do mesmo tipo.","SyntaxError: unterminated string literal (detected at line 3)"],
+["py",/'([(\[{])' was never closed|unmatched '([)\]}])'/,"SyntaxError (símbolo sem par)","Erro de sintaxe: “{1}{2}” sem par (nunca foi fechado, ou foi fechado sem ter sido aberto).","Um parêntese, colchete ou chave foi aberto e não fechado, ou o contrário.","Conte os pares de ( ), [ ] e { } e procure o que sobrou, geralmente antes da linha apontada.","SyntaxError: '(' was never closed"],
+["py",/expected ':'/,"SyntaxError (faltam dois-pontos)","Erro de sintaxe: era esperado “:”.","Comandos como if, for, while, def e class precisam terminar com dois-pontos.","Coloque : no fim da linha do comando.","SyntaxError: expected ':'"],
+["py",/IndentationError: (.+)/,"IndentationError (erro de indentação)","Erro de indentação. Detalhe: “{1}”.","No Python, o recuo (espaços no começo da linha) faz parte da sintaxe, e aqui está faltando, sobrando ou irregular.","Use 4 espaços por nível, não misture Tab com espaços e deixe o bloco do if/for/def recuado.","IndentationError: expected an indented block after 'if' statement on line 2"],
+["*",/name '([^']+)' is not defined|ReferenceError: ([\w$.]+) is not defined/,"NameError / ReferenceError (nome não definido)","Erro de nome: “{1}{2}” não está definido.","Você usou o nome “{1}{2}”, mas ele (variável ou função) ainda não foi criado nesse ponto do código.","Confira erros de digitação, maiúsculas e minúsculas e se a variável foi criada antes de ser usada.","NameError: name 'idade' is not defined"],
+["py",/can only concatenate str \(not "(\w+)"\) to str|unsupported operand type\(s\) for ([+\-*\/]+): '(\w+)' and '(\w+)'/,"TypeError (tipos incompatíveis)","Erro de tipo: só é possível juntar texto com texto, ou a operação não existe entre esses tipos.","Você misturou tipos diferentes numa operação, como somar texto com número.","Converta com str(), int() ou float(), ou use f-string: f'idade: {idade}'.",'TypeError: can only concatenate str (not "int") to str'],
+["py",/'(\w+)' object is not subscriptable/,"TypeError (não aceita índice)","Erro de tipo: o objeto “{1}” não é subscriptable (não aceita [ ]).","Você usou colchetes [ ] em algo que não é lista, texto ou dicionário, como um número ou None.","Veja o tipo da variável com type(x) e confira se ela realmente guarda uma lista ou texto.","TypeError: 'int' object is not subscriptable"],
+["py",/'(\w+)' object is not callable/,"TypeError (não pode ser chamado)","Erro de tipo: o objeto “{1}” não é callable (não pode ser chamado como função).","Você usou parênteses ( ) como se chamasse uma função, mas aquilo é um valor do tipo “{1}”. Costuma acontecer quando uma variável tem o mesmo nome de uma função.","Evite nomes como sum, list ou str para variáveis e confira se não faltou um operador antes do parêntese.","TypeError: 'int' object is not callable"],
+["py",/positional argument/,"TypeError (argumentos da função)","Erro de tipo: faltam argumentos posicionais obrigatórios, ou a função recebeu argumentos a mais.","O número de valores passados na chamada não bate com o número de parâmetros definidos no def.","Compare a definição da função com a chamada e confira se faltou (ou sobrou) um valor.","TypeError: soma() missing 1 required positional argument: 'b'"],
+["py",/'(\w+)' object is not iterable/,"TypeError (não é iterável)","Erro de tipo: o objeto “{1}” não é iterable (não pode ser percorrido).","Um for (ou list(), sum()…) precisa de algo que possa ser percorrido, como lista, texto ou range, e recebeu um “{1}”.","Para repetir n vezes, use for i in range(n). Confira o tipo com type(x).","TypeError: 'int' object is not iterable"],
+["py",/index out of range/,"IndexError (índice fora do intervalo)","Erro de índice: índice da lista fora do intervalo.","Você pediu uma posição que não existe. Numa lista de 3 itens, os índices válidos são 0, 1 e 2.","Confira len(lista) e o limite do loop. O último índice é len(lista) - 1.","IndexError: list index out of range"],
+["py",/KeyError: (.+)/,"KeyError (chave não encontrada)","Erro de chave: chave não encontrada.","O dicionário não tem a chave {1}.","Confira a grafia da chave e use if chave in dic ou dic.get(chave) para testar antes.","KeyError: 'nome'"],
+["py",/invalid literal for int\(\) with base 10: (.+)/,"ValueError (valor inválido)","Erro de valor: literal inválido para int() na base 10.","O texto {1} não pode virar número inteiro (tem letras, espaços ou vírgula decimal).","Valide a entrada antes de converter ou use try/except. Para decimais, use float() com ponto.","ValueError: invalid literal for int() with base 10: 'abc'"],
+["py",/AttributeError: '(\w+)' object has no attribute '(\w+)'/,"AttributeError (atributo inexistente)","Erro de atributo: o objeto “{1}” não tem o atributo “{2}”.","Você tentou usar um método ou atributo “{2}” que não existe para o tipo “{1}”.","Confira a grafia e o tipo da variável. Se for NoneType, ela vale None, muitas vezes porque uma função não retornou nada.","AttributeError: 'str' object has no attribute 'push'"],
+["py",/ZeroDivisionError/,"ZeroDivisionError (divisão por zero)","Erro de divisão por zero.","Alguma divisão (ou resto, %) teve divisor igual a zero, o que é impossível.","Teste se o divisor é diferente de zero antes de dividir.","ZeroDivisionError: division by zero"],
+["py",/No module named '([^']+)'/,"ModuleNotFoundError (módulo não encontrado)","Erro: nenhum módulo chamado “{1}”.","O Python não achou o módulo (biblioteca) “{1}”: ele não está instalado ou o nome está errado.","Instale com pip install {1} (confira o nome do pacote) e veja se está no ambiente virtual certo.","ModuleNotFoundError: No module named 'pandas'"],
+["*",/RecursionError|Maximum call stack size exceeded/,"Recursão infinita (estouro da pilha)","Erro de recursão: profundidade máxima excedida (tamanho máximo da pilha de chamadas excedido).","Uma função chamou a si mesma sem parar, até estourar o limite da pilha de chamadas.","Confira se a função tem um caso base (condição de parada) e se cada chamada se aproxima dele.","RecursionError: maximum recursion depth exceeded"],
+["js",/Cannot read propert(?:y|ies) of (undefined|null) \(reading '([^']+)'\)/,"TypeError (propriedade de undefined)","Erro de tipo: não é possível ler propriedades de {1} (lendo “{2}”).","Você tentou acessar “.{2}” em algo que vale {1}: o objeto ainda não existe ou veio vazio.","Verifique se a variável foi preenchida antes (dado que ainda não chegou, nome errado). Use obj?.{2} para evitar o erro.","TypeError: Cannot read properties of undefined (reading 'length')"],
+["js",/([\w$.]+) is not a function/,"TypeError (não é uma função)","Erro de tipo: “{1}” não é uma função.","Você chamou “{1}” com parênteses, mas ele não é uma função (pode ser undefined, número ou objeto).","Confira o nome, as maiúsculas e se a função foi definida ou importada antes.","TypeError: soma is not a function"],
+["js",/SyntaxError: Unexpected (?:token|identifier|end of input)/,"SyntaxError (símbolo inesperado)","Erro de sintaxe: símbolo (token) inesperado.","Há um símbolo fora do lugar, ou algo faltando antes dele, como vírgula, chave ou parêntese.","Veja a linha indicada e as anteriores e conte os pares de ( ), [ ] e { }.","SyntaxError: Unexpected token '}'"],
+["js",/Assignment to constant variable/,"TypeError (atribuição a constante)","Erro de tipo: atribuição a uma variável constante.","Uma variável declarada com const não pode receber outro valor depois.","Troque const por let se o valor precisar mudar.","TypeError: Assignment to constant variable."],
+["js",/Identifier '(\w+)' has already been declared/,"SyntaxError (nome já declarado)","Erro de sintaxe: o identificador “{1}” já foi declarado.","O nome “{1}” foi declarado duas vezes com let ou const no mesmo escopo.","Renomeie ou apague a declaração repetida. Para mudar o valor, atribua sem let/const.","SyntaxError: Identifier 'x' has already been declared"]
+];
+const GL="syntax|sintaxe (a “gramática” da linguagem);invalid|inválido;unexpected|inesperado;token|símbolo (peça do código);expected|esperado;indent|recuo (espaços no início da linha);indentation|indentação (recuo das linhas);block|bloco de código;defined|definido (criado);undefined|indefinido (sem valor);object|objeto;attribute|atributo;subscriptable|que aceita índice [ ];callable|que pode ser chamado como função;iterable|que pode ser percorrido;argument|argumento (valor passado à função);positional|posicional (pela ordem);missing|faltando;required|obrigatório;index|índice (posição);range|intervalo;key|chave;value|valor;literal|valor escrito direto no código;unterminated|não terminado;string|texto (string);unmatched|sem par;parenthesis|parêntese;closed|fechado;module|módulo (biblioteca);division|divisão;recursion|recursão;depth|profundidade;exceeded|excedido;maximum|máximo;cannot|não é possível;properties|propriedades;declared|declarado;constant|constante;assignment|atribuição;concatenate|concatenar (juntar textos);operand|operando;type|tipo;reference|referência;traceback|rastro dos locais por onde o erro passou;exception|exceção;error|erro".split(";").map(s=>s.split("|"));
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fill=(s,m)=>s.replace(/\{(\d)\}/g,(_,n)=>esc(m&&m[n]||""));
+const now=()=>new Date().toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+
+let H=[];
+try{H=JSON.parse(localStorage.getItem("falp-h")||"[]")}catch(e){}
+const sv=()=>{try{localStorage.setItem("falp-h",JSON.stringify(H))}catch(e){}};
+
+function show(p){
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-selected",b.dataset.p==p));
+  ["a","f","h"].forEach(x=>$("#"+x).hidden=x!=p);
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.p));
+
+function run(){
+  const t=$("#in").value.trim(),o=$("#out");
+  if(!t){o.innerHTML='<p class="mu">Cole uma mensagem de erro (ou o código com o erro) no campo acima.</p>';return}
+  const L=$("#lg").value;let be=null,bm=null;
+  for(const e of E){
+    if(L!="auto"&&e[0]!="*"&&e[0]!=L)continue;
+    const m=t.match(e[1]);
+    if(m&&(!bm||m.index>bm.index)){be=e;bm=m}
+  }
+  const ln=[...t.matchAll(/(?:line |\.\w+:)(\d+)/gi)].pop();
+  const src=be?t.slice(bm.index).split("\n")[0]:t;
+  const v=GL.filter(g=>new RegExp("\\b"+g[0]+"\\b","i").test(src)).slice(0,10);
+  let h='<div class="c">';
+  if(be){
+    h+=`<h2>${be[2]}</h2><p class="k">Trecho encontrado</p><p><code>${esc(bm[0])}</code></p>`
+     +`<p><b>Tradução:</b> ${fill(be[3],bm)}</p><p><b>O que significa aqui:</b> ${fill(be[4],bm)}</p><p><b>O que verificar:</b> ${fill(be[5],bm)}</p>`;
+  }else{
+    const bal=[["(",")"],["[","]"],["{","}"]].filter(([a,b])=>t.split(a).length!=t.split(b).length)
+      .map(([a,b])=>`${t.split(a).length-1} “${a}” e ${t.split(b).length-1} “${b}”`);
+    h+='<h2>Erro ainda não está na base do FALP</h2><p>Dicas para entender qualquer erro: leia a última linha, porque o tipo do erro vem antes dos dois-pontos; veja o número da linha indicado; e pesquise a mensagem completa em inglês.</p>';
+    if(bal.length)h+=`<p><b>Pista no seu código:</b> a contagem de símbolos não bate (${bal.join("; ")}). Veja se algum foi aberto e não fechado.</p>`;
+  }
+  if(ln)h+=`<p><b>Linha indicada:</b> ${ln[1]}</p>`;
+  if(v.length)h+=`<p class="k">Vocabulário desta mensagem</p><ul>${v.map(g=>`<li><code>${g[0]}</code> significa ${g[1]}</li>`).join("")}</ul>`;
+  o.innerHTML=h+"</div>";
+  if(!H.length||H[0].t!=t.slice(0,300)){
+    H.unshift({t:t.slice(0,300),n:be?be[2].split(" (")[0]:"Não identificado",d:now()});
+    H=H.slice(0,15);sv();
+  }
+  hist();
+}
+
+function hist(){
+  $("#hc").textContent=H.length?"("+H.length+")":"";
+  $("#hl").innerHTML=H.length
+    ?H.map((h,i)=>`<div class="c"><p class="k">${esc(h.n)} em ${esc(h.d)}</p><p><code>${esc(h.t.slice(0,140))}</code></p><button class="b s" data-o="${i}">Abrir de novo</button></div>`).join("")+'<button class="b s" id="hx">Limpar histórico</button>'
+    :'<p class="mu">Nenhuma dúvida por aqui ainda. Use a aba Analisar e as últimas dúvidas aparecem nesta lista.</p>';
+}
+
+function faq(q){
+  q=(q||"").toLowerCase();
+  $("#fl").innerHTML=E.map((e,i)=>[e,i]).filter(([e])=>(e[2]+e[3]+e[6]).toLowerCase().includes(q)).map(([e,i])=>{
+    const m=e[6].match(e[1]);
+    return `<details><summary>${e[2]}<span class="bd">${({py:"Python",js:"JavaScript"})[e[0]]||"Python e JS"}</span></summary>`
+     +`<p><code>${esc(e[6])}</code></p><p><b>Tradução:</b> ${fill(e[3],m)}</p><p><b>Significado:</b> ${fill(e[4],m)}</p><p><b>Como resolver:</b> ${fill(e[5],m)}</p>`
+     +`<button class="b s" data-t="${i}">Testar no analisador</button></details>`;
+  }).join("")||'<p class="mu">Nada encontrado. Tente outra palavra.</p>';
+}
+
+$("#go").onclick=run;
+$("#cl").onclick=()=>{$("#in").value="";$("#out").innerHTML="";$("#in").focus()};
+$("#in").onkeydown=e=>{if(e.key=="Enter"&&(e.ctrlKey||e.metaKey))run()};
+$("#q").oninput=e=>faq(e.target.value);
+$("#fl").onclick=e=>{const i=e.target.dataset.t;if(i!=null){$("#lg").value="auto";$("#in").value=E[i][6];show("a");run()}};
+$("#hl").onclick=e=>{
+  if(e.target.id=="hx"){H=[];sv();hist();return}
+  const i=e.target.dataset.o;
+  if(i!=null){$("#lg").value="auto";$("#in").value=H[i].t;show("a");run()}
+};
+faq();hist();
+</script>
+</body>
+</html>
